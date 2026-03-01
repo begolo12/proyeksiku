@@ -15,18 +15,24 @@ import {
 export default function DashboardPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
-    const [projects, setProjects] = useState([]);
-    const [deleteId, setDeleteId] = useState(null);
+    const [projectsLoading, setProjectsLoading] = useState(true);
+
+    const fetchProjects = async () => {
+        setProjectsLoading(true);
+        const data = await getProjects();
+        setProjects(data);
+        setProjectsLoading(false);
+    };
 
     useEffect(() => {
         if (!loading && !user) router.replace('/login');
-        else if (user) setProjects(getProjects());
+        else if (user) fetchProjects();
     }, [user, loading, router]);
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (deleteId) {
-            deleteProject(deleteId);
-            setProjects(getProjects());
+            await deleteProject(deleteId);
+            await fetchProjects();
             setDeleteId(null);
         }
     };

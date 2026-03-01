@@ -43,9 +43,14 @@ export default function PresentationPage({ params }) {
     }, [user, authLoading, router]);
 
     useEffect(() => {
-        const p = getProject(id);
-        if (p) setProject(p);
-        else if (!authLoading) router.replace('/dashboard');
+        const fetchProjectData = async () => {
+            if (!id) return;
+            const p = await getProject(id);
+            if (p) setProject(p);
+            else if (!authLoading) router.replace('/dashboard');
+        };
+
+        if (!authLoading) fetchProjectData();
     }, [id, authLoading, router]);
 
     const goNext = useCallback(() => setCurrent(c => Math.min(c + 1, SLIDES.length - 1)), []);

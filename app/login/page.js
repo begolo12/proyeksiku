@@ -22,10 +22,19 @@ export default function LoginPage() {
         e.preventDefault();
         setError('');
         setSubmitting(true);
-        if (!email || !password) { setError('Email dan password harus diisi'); setSubmitting(false); return; }
-        const ok = login(email, password);
-        if (ok) { router.push('/dashboard'); }
-        else { setError('Email atau password salah'); setSubmitting(false); }
+        if (!email || !password) {
+            setError('Email dan password harus diisi');
+            setSubmitting(false);
+            return;
+        }
+
+        const res = await login(email, password);
+        if (res.success) {
+            router.push('/dashboard');
+        } else {
+            setError(res.error || 'Email atau password salah');
+            setSubmitting(false);
+        }
     };
 
     if (loading) return <div className="loading-page"><div className="spinner" /></div>;

@@ -125,14 +125,17 @@ export default function NewProjectPage() {
     const removeTeam = (id) => setTeam(team.filter(t => t.id !== id));
     const updateTeam = (id, field, value) => setTeam(team.map(t => t.id === id ? { ...t, [field]: value } : t));
 
+    const [saving, setSaving] = useState(false);
+
     // Save
-    const handleSave = () => {
+    const handleSave = async () => {
+        setSaving(true);
         // Update marketing cost in costs array
         const updatedCosts = costs.map(c =>
             c.name === 'Marketing / Iklan' ? { ...c, amount: marketingBudget } : c
         );
 
-        const project = {
+        const projectData = {
             id: generateId(),
             name,
             businessType,
@@ -148,19 +151,18 @@ export default function NewProjectPage() {
                 team,
                 unitEconomics: { cac, ltv }
             },
-            investment: {
-                totalCapital,
-                investorShare,
-                timeline: Number(timeline),
-                growthRate,
-                inflationRate,
-                discountRate,
-            },
+            investment: { totalCapital, investorShare, timeline: Number(timeline), growthRate, inflationRate, discountRate },
             marketingStrategy,
         };
 
-        saveProject(project);
-        router.push(`/project/${project.id}`);
+        try {
+            await saveProject(projectData);
+            router.push('/dashboard');
+        } catch (error) {
+            console.error('Save failed:', error);
+            alert('Gagal menyimpan proyek: ' + error.message);
+            setSaving(false);
+        }
     };
 
     const canNext = () => {
@@ -575,8 +577,8 @@ export default function NewProjectPage() {
                                     Lanjut <ChevronRight size={18} />
                                 </button>
                             ) : (
-                                <button className="btn btn-accent btn-lg" onClick={handleSave} disabled={!canNext()} id="save-project-btn">
-                                    <Check size={18} /> Simpan & Lihat Proyeksi
+                                <button className="btn btn-accent btn-lg" onClick={handleSave} disabled={!canNext() || saving} id="save-project-btn">
+                                    {saving ? <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : <><Check size={18} /> Simpan & Lihat Proyeksi</>}
                                 </button>
                             )}
                         </div>

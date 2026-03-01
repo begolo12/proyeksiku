@@ -62,43 +62,53 @@ export default function EditProjectPage({ params }) {
     const [investorShare, setInvestorShare] = useState(0);
     const [timeline, setTimeline] = useState('6');
     const [growthRate, setGrowthRate] = useState(3);
+    const [inflationRate, setInflationRate] = useState(0);
+    const [discountRate, setDiscountRate] = useState(0);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !user) router.replace('/login');
     }, [user, authLoading, router]);
 
     useEffect(() => {
-        const p = getProject(id);
-        if (p) {
-            setName(p.name || '');
-            setBusinessType(p.businessType || 'fnb');
-            setDescription(p.description || '');
-            setLocation(p.location || '');
-            setProducts(p.products || [{ id: generateId(), name: '', costPrice: 0, sellPrice: 0, dailyQty: 0 }]);
-            setCosts(p.costs || DEFAULT_COST_ITEMS.map(c => ({ ...c, id: generateId() })));
-            setMarketingBudget(p.costs?.find(c => c.name === 'Marketing / Iklan')?.amount || 0);
-            setMarketingStrategy(p.marketingStrategy || '');
-            if (p.timelineActivities) setTimelineActivities(p.timelineActivities);
+        const fetchProjectData = async () => {
+            if (!id) return;
+            const p = await getProject(id);
+            if (p) {
+                setName(p.name || '');
+                setBusinessType(p.businessType || 'fnb');
+                setDescription(p.description || '');
+                setLocation(p.location || '');
+                setProducts(p.products || [{ id: generateId(), name: '', costPrice: 0, sellPrice: 0, dailyQty: 0 }]);
+                setCosts(p.costs || DEFAULT_COST_ITEMS.map(c => ({ ...c, id: generateId() })));
+                setMarketingBudget(p.costs?.find(c => c.name === 'Marketing / Iklan')?.amount || 0);
+                setMarketingStrategy(p.marketingStrategy || '');
+                if (p.timelineActivities) setTimelineActivities(p.timelineActivities);
 
-            if (p.pitch) {
-                setValueProposition(p.pitch.valueProposition || '');
-                if (p.pitch.marketSize) setMarketSize(p.pitch.marketSize);
-                if (p.pitch.competitors) setCompetitors(p.pitch.competitors);
-                if (p.pitch.team) setTeam(p.pitch.team);
-                if (p.pitch.unitEconomics) {
-                    setCac(p.pitch.unitEconomics.cac || 0);
-                    setLtv(p.pitch.unitEconomics.ltv || 0);
+                if (p.pitch) {
+                    setValueProposition(p.pitch.valueProposition || '');
+                    if (p.pitch.marketSize) setMarketSize(p.pitch.marketSize);
+                    if (p.pitch.competitors) setCompetitors(p.pitch.competitors);
+                    if (p.pitch.team) setTeam(p.pitch.team);
+                    if (p.pitch.unitEconomics) {
+                        setCac(p.pitch.unitEconomics.cac || 0);
+                        setLtv(p.pitch.unitEconomics.ltv || 0);
+                    }
                 }
-            }
 
-            setTotalCapital(p.investment?.totalCapital || 0);
-            setInvestorShare(p.investment?.investorShare || 0);
-            setTimeline(String(p.investment?.timeline || '6'));
-            setGrowthRate(p.investment?.growthRate || 3);
-            setLoaded(true);
-        } else if (!authLoading) {
-            router.replace('/dashboard');
-        }
+                setTotalCapital(p.investment?.totalCapital || 0);
+                setInvestorShare(p.investment?.investorShare || 0);
+                setTimeline(String(p.investment?.timeline || '6'));
+                setGrowthRate(p.investment?.growthRate || 3);
+                setInflationRate(p.investment?.inflationRate || 0);
+                setDiscountRate(p.investment?.discountRate || 0);
+                setLoaded(true);
+            } else if (!authLoading) {
+                router.replace('/dashboard');
+            }
+        };
+
+        if (!authLoading) fetchProjectData();
     }, [id, authLoading, router]);
 
     const addProduct = () => setProducts([...products, { id: generateId(), name: '', costPrice: 0, sellPrice: 0, dailyQty: 0 }]);
@@ -132,9 +142,10 @@ export default function EditProjectPage({ params }) {
     const removeTeam = (id) => setTeam(team.filter(t => t.id !== id));
     const updateTeam = (id, field, value) => setTeam(team.map(t => t.id === id ? { ...t, [field]: value } : t));
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        setSaving(true);
         const updatedCosts = costs.map(c => c.name === 'Marketing / Iklan' ? { ...c, amount: marketingBudget } : c);
-        const project = {
+        const projectData = {
             id,
             name, businessType, description, location,
             products, costs: updatedCosts,
@@ -149,8 +160,15 @@ export default function EditProjectPage({ params }) {
             investment: { totalCapital, investorShare, timeline: Number(timeline), growthRate, inflationRate, discountRate },
             marketingStrategy,
         };
-        saveProject(project);
-        router.push(`/project/${id}`);
+
+        try {
+            await saveProject(projectData);
+            router.push(`/project/${id}`);
+        } catch (error) {
+            console.error('Save failed:', error);
+            alert('Gagal menyimpan perubahan: ' + error.message);
+            setSaving(false);
+        }
     };
 
     if (authLoading || !user || !loaded) {
@@ -294,33 +312,44 @@ export default function EditProjectPage({ params }) {
                             </>
                         )}
 
-                        {step === 4 && (
+                        {step === 6 && (
                             <>
                                 <h2><span className="step-emoji">🏦</span> Modal & Investasi</h2>
                                 <div className="form-grid">
                                     <div className="form-group">
                                         <label>Total Modal Dibutuhkan (Rp) *</label>
                                         <CurrencyInput className="form-input" placeholder="0" value={totalCapital} onChange={val => setTotalCapital(val)} />
-                                    </div>        <div className="form-group"><label>Bagian Investor (%)</label><input className="form-input" type="number" min="0" max="100" value={investorShare || ''} onChange={e => setInvestorShare(Number(e.target.value) || 0)} /></div>
+                                    </div>
+                                    <div className="form-group"><label>Bagian Investor (%)</label><input className="form-input" type="number" min="0" max="100" value={investorShare || ''} onChange={e => setInvestorShare(Number(e.target.value) || 0)} /></div>
                                     <div className="form-group"><label>Timeline (Bulan)</label>
                                         <select className="form-select" value={timeline} onChange={e => setTimeline(e.target.value)}>
                                             <option value="3">3 Bulan</option><option value="6">6 Bulan</option><option value="12">12 Bulan</option><option value="18">18 Bulan</option><option value="24">24 Bulan</option>
                                         </select>
                                     </div>
                                     <div className="form-group"><label>Pertumbuhan/Bulan (%)</label><input className="form-input" type="number" min="0" max="50" value={growthRate || ''} onChange={e => setGrowthRate(Number(e.target.value) || 0)} /></div>
+                                    <div className="form-group">
+                                        <label>Asumsi Inflasi / Thn (%)</label>
+                                        <input className="form-input" type="number" value={inflationRate || ''} onChange={e => setInflationRate(Number(e.target.value) || 0)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Discount Rate (%)</label>
+                                        <input className="form-input" type="number" value={discountRate || ''} onChange={e => setDiscountRate(Number(e.target.value) || 0)} />
+                                    </div>
                                 </div>
                                 <div className="summary-box mt-lg"><span className="summary-icon">💡</span><div><div className="summary-label">Modal Investor</div><div className="summary-value">{formatCurrency(totalCapital * investorShare / 100)}</div></div></div>
                             </>
                         )}
 
                         <div className="wizard-actions">
-                            <button className="btn btn-secondary" onClick={() => step > 0 ? setStep(step - 1) : router.push(`/project/${id}`)}>
+                            <button className="btn btn-secondary" onClick={() => step > 0 ? setStep(step - 1) : router.push(`/project/${id}`)} disabled={saving}>
                                 <ChevronLeft size={18} /> {step > 0 ? 'Sebelumnya' : 'Batal'}
                             </button>
                             {step < STEPS.length - 1 ? (
                                 <button className="btn btn-primary" onClick={() => setStep(step + 1)}>Lanjut <ChevronRight size={18} /></button>
                             ) : (
-                                <button className="btn btn-accent btn-lg" onClick={handleSave}><Check size={18} /> Simpan Perubahan</button>
+                                <button className="btn btn-accent btn-lg" onClick={handleSave} disabled={saving}>
+                                    {saving ? <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : <><Check size={18} /> Simpan Perubahan</>}
+                                </button>
                             )}
                         </div>
                     </div>

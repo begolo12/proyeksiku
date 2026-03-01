@@ -1,72 +1,100 @@
 'use client';
 
 /**
- * localStorage wrapper — designed to be swapped with Firebase Firestore
+ * Firebase Firestore implementation
  */
+import {
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy
+} from 'firebase/firestore';
+import { db, auth } from './firebase';
 
-const STORAGE_KEY = 'proyeksiku_data';
+const COLLECTION_NAME = 'projects';
 
-function getData() {
-    if (typeof window === 'undefined') return { projects: [] };
+export async function getProjects() {
+    if (!auth.currentUser) return [];
+
     try {
-        const data = localStorage.getItem(STORAGE_KEY);
-        return data ? JSON.parse(data) : { projects: [] };
-    } catch {
-        return { projects: [] };
+        const q = query(
+            collection(db, COLLECTION_NAME),
+            where('userId', '==', auth.currentUser.uid),
+            orderBy('updatedAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error('Error getting projects:', error);
+        return [];
     }
 }
 
-function saveData(data) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-export function getProjects() {
-    return getData().projects || [];
-}
-
-export function getProject(id) {
-    const projects = getProjects();
-    return projects.find(p => p.id === id) || null;
-}
-
-export function saveProject(project) {
-    const data = getData();
-    const index = data.projects.findIndex(p => p.id === project.id);
-    if (index >= 0) {
-        data.projects[index] = { ...project, updatedAt: new Date().toISOString() };
-    } else {
-        data.projects.push({ ...project, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    }
-    saveData(data);
-    return project;
-}
-
-export function deleteProject(id) {
-    const data = getData();
-    data.projects = data.projects.filter(p => p.id !== id);
-    saveData(data);
-}
-
-// Auth storage
-const AUTH_KEY = 'proyeksiku_auth';
-
-export function getAuth() {
-    if (typeof window === 'undefined') return null;
+export async function getProject(id) {
+    if (!id) return null;
     try {
-        const auth = localStorage.getItem(AUTH_KEY);
-        return auth ? JSON.parse(auth) : null;
-    } catch {
+        const docRef = doc(db, COLLECTION_NAME, id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            // Basic security check: ensure it belongs to the user
+            if (data.userId === auth.currentUser?.uid) {
+                return { id: docSnap.id, ...data };
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error getting project:', error);
         return null;
     }
 }
 
-export function setAuth(user) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+export async function saveProject(project) {
+    if (!auth.currentUser) throw new Error('User harus login untuk menyimpan data.');
+
+    const projectId = project.id;
+    const projectRef = doc(db, COLLECTION_NAME, projectId);
+
+    const now = new Date().toISOString();
+    const projectData = {
+        ...project,
+        userId: auth.currentUser.uid,
+        updatedAt: now
+    };
+
+    // If it's a new project, add createdAt
+    const docSnap = await getDoc(projectRef);
+    if (!docSnap.exists()) {
+        projectData.createdAt = now;
+    }
+
+    try {
+        await setDoc(projectRef, projectData, { merge: true });
+        return projectData;
+    } catch (error) {
+        console.error('Error saving project:', error);
+        throw error;
+    }
 }
 
-export function clearAuth() {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(AUTH_KEY);
+export async function deleteProject(id) {
+    if (!id) return;
+    try {
+        const docRef = doc(db, COLLECTION_NAME, id);
+        await deleteDoc(docRef);
+    } catch (error) {
+        console.error('Error deleting project:', error);
+    }
 }
+
+// Auth storage is now handled directly by Firebase and AuthContext
+export function getAuth() { return null; }
+export function setAuth() { }
+export function clearAuth() { }
