@@ -1,12 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import {
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
-    signOut
-} from 'firebase/auth';
-import { auth } from '@/app/lib/firebase';
+import { getToken, apiLogin, apiRegister, removeToken } from '@/app/lib/api';
 
 const AuthContext = createContext(null);
 
@@ -15,49 +10,47 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-            if (firebaseUser) {
-                // Map Firebase user to our app user format
-                setUser({
-                    uid: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-                    role: 'user' // Default role
-                });
-            } else {
+        // Cek apakah ada user yang tersimpan di localStorage saat aplikasi dimuat
+        const savedUser = localStorage.getItem('proyeksiku_user');
+        const token = getToken();
+
+        if (token && savedUser) {
+            try {
+                setUser(JSON.parse(savedUser));
+            } catch (e) {
+                removeToken();
                 setUser(null);
             }
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        }
+        setLoading(false);
     }, []);
 
     const login = async (email, password) => {
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const data = await apiLogin(email, password);
+            setUser(data.user);
             return { success: true };
         } catch (error) {
-            let message = 'Terjadi kesalahan saat login.';
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                message = 'Email atau password salah!';
-            } else if (error.code === 'auth/invalid-email') {
-                message = 'Format email tidak valid!';
-            }
-            return { success: false, error: message };
+            return { success: false, error: error.message || 'Email atau password salah!' };
+        }
+    };
+
+    const register = async (name, email, password) => {
+        try {
+            await apiRegister(name, email, password);
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message || 'Gagal membuat akun.' };
         }
     };
 
     const logout = async () => {
-        try {
-            await signOut(auth);
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
+        removeToken();
+        setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, register }}>
             {children}
         </AuthContext.Provider>
     );

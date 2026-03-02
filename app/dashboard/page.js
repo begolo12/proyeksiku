@@ -15,6 +15,8 @@ import {
 export default function DashboardPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const [projects, setProjects] = useState([]);
+    const [deleteId, setDeleteId] = useState(null);
     const [projectsLoading, setProjectsLoading] = useState(true);
 
     const fetchProjects = async () => {
