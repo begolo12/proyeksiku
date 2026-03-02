@@ -64,6 +64,13 @@ export default function EditProjectPage({ params }) {
     const [growthRate, setGrowthRate] = useState(3);
     const [inflationRate, setInflationRate] = useState(0);
     const [discountRate, setDiscountRate] = useState(0);
+
+    // SWOT Analysis
+    const [strengths, setStrengths] = useState('');
+    const [weaknesses, setWeaknesses] = useState('');
+    const [opportunities, setOpportunities] = useState('');
+    const [threats, setThreats] = useState('');
+
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -102,6 +109,13 @@ export default function EditProjectPage({ params }) {
                 setGrowthRate(p.investment?.growthRate || 3);
                 setInflationRate(p.investment?.inflationRate || 0);
                 setDiscountRate(p.investment?.discountRate || 0);
+
+                // SWOT
+                setStrengths(p.strengths || '');
+                setWeaknesses(p.weaknesses || '');
+                setOpportunities(p.opportunities || '');
+                setThreats(p.threats || '');
+
                 setLoaded(true);
             } else if (!authLoading) {
                 router.replace('/dashboard');
@@ -159,6 +173,7 @@ export default function EditProjectPage({ params }) {
             },
             investment: { totalCapital, investorShare, timeline: Number(timeline), growthRate, inflationRate, discountRate },
             marketingStrategy,
+            strengths, weaknesses, opportunities, threats,
         };
 
         try {
@@ -308,6 +323,49 @@ export default function EditProjectPage({ params }) {
                                         <label>Budget Marketing / Bulan (Rp)</label>
                                         <CurrencyInput className="form-input" placeholder="0" value={marketingBudget} onChange={val => setMarketingBudget(val)} />
                                     </div>        <div className="form-group"><label>Strategi Marketing</label><textarea className="form-input form-textarea" value={marketingStrategy} onChange={e => setMarketingStrategy(e.target.value)} /></div>
+                                </div>
+                            </>
+                        )}
+                        {step === 4 && (
+                            <>
+                                <h2><span className="step-emoji">🗓️</span> Timeline Kegiatan</h2>
+                                <div className="data-table-wrapper">
+                                    <table className="data-table">
+                                        <thead><tr><th>Kegiatan</th><th>Mulai (Bulan)</th><th>Selesai (Bulan)</th><th></th></tr></thead>
+                                        <tbody>
+                                            {timelineActivities.map(a => (
+                                                <tr key={a.id}>
+                                                    <td className="input-cell"><input className="form-input" value={a.name} onChange={e => updateActivity(a.id, 'name', e.target.value)} /></td>
+                                                    <td className="input-cell"><input className="form-input" type="number" min="1" max="12" value={a.startMonth} onChange={e => updateActivity(a.id, 'startMonth', e.target.value)} /></td>
+                                                    <td className="input-cell"><input className="form-input" type="number" min="1" max="12" value={a.endMonth} onChange={e => updateActivity(a.id, 'endMonth', e.target.value)} /></td>
+                                                    <td><button className="btn btn-ghost btn-icon" onClick={() => removeActivity(a.id)} style={{ color: 'var(--danger)' }}><Trash2 size={16} /></button></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button className="add-row-btn" onClick={addActivity}><Plus size={16} /> Tambah Kegiatan</button>
+                            </>
+                        )}
+
+                        {step === 5 && (
+                            <>
+                                <h2><span className="step-emoji">📢</span> Pitch Deck & Analisis SWOT</h2>
+                                <div className="form-group mb-md">
+                                    <label>Value Proposition *</label>
+                                    <textarea className="form-input" value={valueProposition} onChange={e => setValueProposition(e.target.value)} rows={2} placeholder="Apa keunggulan utama bisnis Anda?" />
+                                </div>
+                                <div className="form-grid">
+                                    <div className="form-group"><label>Strengths</label><textarea className="form-input" value={strengths} onChange={e => setStrengths(e.target.value)} rows={2} /></div>
+                                    <div className="form-group"><label>Weaknesses</label><textarea className="form-input" value={weaknesses} onChange={e => setWeaknesses(e.target.value)} rows={2} /></div>
+                                    <div className="form-group"><label>Opportunities</label><textarea className="form-input" value={opportunities} onChange={e => setOpportunities(e.target.value)} rows={2} /></div>
+                                    <div className="form-group"><label>Threats</label><textarea className="form-input" value={threats} onChange={e => setThreats(e.target.value)} rows={2} /></div>
+                                </div>
+                                <h3 className="text-h3 mt-md mb-sm">Market Sizing (Rp)</h3>
+                                <div className="form-grid">
+                                    <div className="form-group"><label>TAM</label><CurrencyInput className="form-input" value={marketSize.tam} onChange={val => setMarketSize({ ...marketSize, tam: val })} /></div>
+                                    <div className="form-group"><label>SAM</label><CurrencyInput className="form-input" value={marketSize.sam} onChange={val => setMarketSize({ ...marketSize, sam: val })} /></div>
+                                    <div className="form-group"><label>SOM</label><CurrencyInput className="form-input" value={marketSize.som} onChange={val => setMarketSize({ ...marketSize, som: val })} /></div>
                                 </div>
                             </>
                         )}

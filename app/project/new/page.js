@@ -72,6 +72,26 @@ export default function NewProjectPage() {
     const [inflationRate, setInflationRate] = useState(5); // % per year
     const [discountRate, setDiscountRate] = useState(10); // % per year (Suku bunga / Cost of Capital)
 
+    // Auto-calculate Total Capital based on costs and initial needs
+    const [suggestedCapital, setSuggestedCapital] = useState(0);
+
+    useEffect(() => {
+        // Sum all operational costs
+        const totalMonthlyCosts = costs.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+
+        // Sum initial product stocking (Assume 1 month worth of inventory as startup stock)
+        const totalInitialInventory = products.reduce((sum, p) => sum + ((Number(p.costPrice) || 0) * (Number(p.dailyQty) || 0) * 30), 0);
+
+        // Suggested Capital: All costs + 1 month inventory buffer
+        const suggested = totalMonthlyCosts + totalInitialInventory;
+        setSuggestedCapital(suggested);
+
+        // Only auto-update if totalCapital is still 0
+        if (totalCapital === 0 && suggested > 0) {
+            setTotalCapital(suggested);
+        }
+    }, [costs, products, totalCapital]);
+
     useEffect(() => {
         if (!authLoading && !user) router.replace('/login');
     }, [user, authLoading, router]);
@@ -136,22 +156,42 @@ export default function NewProjectPage() {
         );
 
         const projectData = {
-            id: generateId(),
             name,
             businessType,
             description,
             location,
-            products,
-            costs: updatedCosts,
-            timelineActivities,
-            pitch: {
+            products: products.map(p => ({
+                name: p.name,
+                costPrice: p.costPrice,
+                sellPrice: p.sellPrice,
+                dailyQty: p.dailyQty
+            })),
+            costs: updatedCosts.map(c => ({
+                name: c.name,
+                amount: c.amount,
+                category: c.category
+            })),
+            timelineActivities: timelineActivities.map(a => ({
+                name: a.name,
+                startMonth: a.startMonth,
+                endMonth: a.endMonth
+            })),
+            pitchDeck: {
                 valueProposition,
-                marketSize,
-                competitors,
-                team,
-                unitEconomics: { cac, ltv }
+                marketSizeJson: JSON.stringify(marketSize),
+                competitorsJson: JSON.stringify(competitors),
+                teamJson: JSON.stringify(team),
+                cac: Number(cac) || 0,
+                ltv: Number(ltv) || 0
             },
-            investment: { totalCapital, investorShare, timeline: Number(timeline), growthRate, inflationRate, discountRate },
+            investment: {
+                totalCapital: Number(totalCapital) || 0,
+                investorShare: Number(investorShare) || 0,
+                timeline: Number(timeline) || 12,
+                growthRate: Number(growthRate) || 3,
+                inflationRate: Number(inflationRate) || 5,
+                discountRate: Number(discountRate) || 10
+            },
             marketingStrategy,
         };
 
@@ -559,6 +599,19 @@ export default function NewProjectPage() {
 
                                 <div className="summary-box mt-lg">
                                     <span className="summary-icon">💡</span>
+                                    <div style={{ flex: 1 }}>
+                                        <div className="summary-label">Sesuai Rencana (COGS + OPEX)</div>
+                                        <div className="summary-value">{formatCurrency(suggestedCapital)}</div>
+                                    </div>
+                                    {totalCapital !== suggestedCapital && suggestedCapital > 0 && (
+                                        <button className="btn btn-outlined btn-sm" onClick={() => setTotalCapital(suggestedCapital)}>
+                                            Gunakan
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="summary-box mt-sm">
+                                    <span className="summary-icon">🤝</span>
                                     <div>
                                         <div className="summary-label">Modal dari Investor</div>
                                         <div className="summary-value">{formatCurrency(totalCapital * investorShare / 100)}</div>

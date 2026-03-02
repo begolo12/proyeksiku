@@ -21,7 +21,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="id">
-      <body>
+      <body suppressHydrationWarning>
         <AuthProvider>
           {children}
         </AuthProvider>

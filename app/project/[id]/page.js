@@ -10,7 +10,7 @@ import { formatCurrency, formatPercent, getBusinessIcon, getBusinessLabel } from
 import {
     ArrowLeft, Presentation, Edit3, TrendingUp, DollarSign,
     PieChart, BarChart3, Target, Calendar, Percent, Users,
-    ShieldCheck, AlertTriangle, Lightbulb, Zap, Clock,
+    ShieldCheck, AlertTriangle, Lightbulb, Zap, Clock, Activity
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -48,15 +48,6 @@ export default function ProjectDetailPage({ params }) {
     const proj = generateProjection(project);
     const data = tab === 'harian' ? proj.daily : tab === 'bulanan' ? proj.monthly : proj.yearly;
     const periodLabel = tab === 'harian' ? '/hari' : tab === 'bulanan' ? '/bulan' : '/tahun';
-
-    // Scenario analysis
-    const pessimisticFactor = 0.7;
-    const optimisticFactor = 1.3;
-    const scenarios = {
-        pessimistic: { revenue: proj.monthly.revenue * pessimisticFactor, netProfit: (proj.monthly.revenue * pessimisticFactor) - (proj.monthly.cogs * pessimisticFactor) - proj.monthly.opCosts },
-        realistic: { revenue: proj.monthly.revenue, netProfit: proj.monthly.netProfit },
-        optimistic: { revenue: proj.monthly.revenue * optimisticFactor, netProfit: (proj.monthly.revenue * optimisticFactor) - (proj.monthly.cogs * optimisticFactor) - proj.monthly.opCosts },
-    };
 
     // Cost breakdown
     const totalMonthlyCost = proj.monthly.cogs + proj.monthly.opCosts;
@@ -104,6 +95,9 @@ export default function ProjectDetailPage({ params }) {
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-outlined" onClick={() => router.push(`/project/${id}/realization`)} style={{ borderColor: 'var(--md-success)', color: 'var(--md-success)' }}>
+                            <Activity size={16} /> Realisasi
+                        </button>
                         <button className="btn btn-outlined" onClick={() => router.push(`/project/${id}/edit`)}>
                             <Edit3 size={16} /> Edit
                         </button>
@@ -161,7 +155,7 @@ export default function ProjectDetailPage({ params }) {
                         {/* Charts */}
                         <div className="two-col">
                             <div className="projection-card">
-                                <h3>📈 Proyeksi Revenue 12 Bulan</h3>
+                                <h3>📈 Proyeksi Revenue 24 Bulan</h3>
                                 <div className="chart-container">
                                     <RevenueChart data={proj.monthlyProjection} />
                                 </div>
@@ -206,12 +200,55 @@ export default function ProjectDetailPage({ params }) {
                                             Break Even Point: <strong style={{ color: 'var(--md-primary)' }}>Bulan ke-{proj.metrics.breakEvenMonth || '-'}</strong>
                                         </div>
                                         <div className="bep-bar-track">
-                                            <div className="bep-bar-fill" style={{ width: `${Math.min(100, (proj.metrics.breakEvenMonth / 12) * 100)}%` }} />
+                                            <div className="bep-bar-fill" style={{ width: `${Math.min(100, (proj.metrics.breakEvenMonth / 24) * 100)}%` }} />
                                         </div>
                                         <div className="bep-labels">
                                             <span>Bulan 1</span>
-                                            <span>Bulan 12</span>
+                                            <span>Bulan 24</span>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Startup Metrics & Valuation */}
+                        <div className="projection-card mt-md" style={{ border: '1px solid var(--md-outline-variant)' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Target size={18} color="var(--md-primary)" /> Startup Metrics & Valuasi
+                            </h3>
+                            <div className="two-col mt-sm">
+                                <div style={{ background: 'var(--md-surface-container-low)', padding: 16, borderRadius: 'var(--md-shape-md)' }}>
+                                    <h4 style={{ fontSize: 14, color: 'var(--md-on-surface)', marginBottom: 12 }}>Key Financial Metrics</h4>
+                                    <div className="summary-row">
+                                        <span className="label">Monthly Burn Rate</span>
+                                        <span className="value" style={{ color: proj.startupMetrics.monthlyBurnRate > 0 ? 'var(--md-error)' : 'var(--md-on-surface-variant)' }}>
+                                            {formatCurrency(proj.startupMetrics.monthlyBurnRate)}
+                                        </span>
+                                    </div>
+                                    <div className="summary-row">
+                                        <span className="label">Runway</span>
+                                        <span className="value" style={{ fontWeight: 600, color: proj.startupMetrics.runwayMonths === -1 ? 'var(--md-success)' : proj.startupMetrics.runwayMonths < 6 ? 'var(--md-error)' : 'var(--md-on-surface)' }}>
+                                            {proj.startupMetrics.runwayMonths === -1 ? 'Profitable (∞)' : `${proj.startupMetrics.runwayMonths.toFixed(1)} bln`}
+                                        </span>
+                                    </div>
+                                    <div className="summary-row">
+                                        <span className="label">LTV : CAC Ratio</span>
+                                        <span className="value" style={{ color: proj.startupMetrics.ltvCacRatio >= 3 ? 'var(--md-success)' : 'var(--md-on-surface)' }}>
+                                            {proj.startupMetrics.ltvCacRatio > 0 ? `1 : ${proj.startupMetrics.ltvCacRatio.toFixed(1)}` : '-'}
+                                        </span>
+                                    </div>
+                                    <div className="summary-row">
+                                        <span className="label">Forecasted ARR</span>
+                                        <span className="value" style={{ color: 'var(--md-primary)' }}>{formatCurrency(proj.startupMetrics.arr)}</span>
+                                    </div>
+                                </div>
+                                <div style={{ background: 'linear-gradient(135deg, var(--md-primary-container), var(--md-surface))', padding: 16, borderRadius: 'var(--md-shape-md)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <div style={{ fontSize: 13, color: 'var(--md-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Estimasi Valuasi (Pre-Money)</div>
+                                    <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--md-on-primary-container)' }}>
+                                        {formatCurrency(proj.valuation.estimatedValuation)}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)', marginTop: 8 }}>
+                                        Berdasarkan rata-rata Multiples ({proj.valuation.revenueMultiple}x Rev / {proj.valuation.ebitdaMultiple}x EBITDA)
                                     </div>
                                 </div>
                             </div>
@@ -307,7 +344,7 @@ export default function ProjectDetailPage({ params }) {
 
                         {/* Cash Flow Table */}
                         <div className="projection-card mt-md">
-                            <h3>💸 Proyeksi Cash Flow 12 Bulan</h3>
+                            <h3>💸 Proyeksi Cash Flow 24 Bulan</h3>
                             <div className="data-table-wrapper">
                                 <table className="data-table">
                                     <thead>
@@ -337,37 +374,108 @@ export default function ProjectDetailPage({ params }) {
                                 </table>
                             </div>
                         </div>
+
+                        {/* Valuation & Cap Table Section (PRO Features) */}
+                        <div className="two-col mt-md">
+                            {/* DCF Card */}
+                            <div className="projection-card" style={{ border: '1px solid var(--md-primary)', background: 'var(--md-surface-container-low)' }}>
+                                <h3 style={{ color: 'var(--md-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <TrendingUp size={18} /> Analisis Valuasi (DCF Method)
+                                </h3>
+                                <p style={{ fontSize: 13, color: 'var(--md-on-surface-variant)', marginBottom: 16 }}>
+                                    Estimasi nilai intrinsik bisnis berdasarkan *Future Cash Flow* (WACC: {proj.valuation.dcf.discountRate}%)
+                                </p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 8, borderBottom: '1px dashed var(--md-outline-variant)' }}>
+                                        <span style={{ fontSize: 13, color: 'var(--md-on-surface-variant)' }}>NPV (24 Bulan)</span>
+                                        <span style={{ fontWeight: 600 }}>{formatCurrency(proj.valuation.dcf.npv)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 8, borderBottom: '1px dashed var(--md-outline-variant)' }}>
+                                        <span style={{ fontSize: 13, color: 'var(--md-on-surface-variant)' }}>Terminal Value</span>
+                                        <span style={{ fontWeight: 600 }}>{formatCurrency(proj.valuation.dcf.terminalValue)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                                        <span style={{ fontWeight: 700, color: 'var(--md-on-surface)' }}>ENTERPRISE VALUE (DCF)</span>
+                                        <span style={{ fontWeight: 800, color: 'var(--md-primary)', fontSize: 18 }}>{formatCurrency(proj.valuation.dcf.enterpriseValue)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Cap Table Card */}
+                            <div className="projection-card" style={{ border: '1px solid var(--md-secondary)', background: 'var(--md-surface-container-low)' }}>
+                                <h3 style={{ color: 'var(--md-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <PieChart size={18} /> Simulasi Cap Table
+                                </h3>
+                                <p style={{ fontSize: 13, color: 'var(--md-on-surface-variant)', marginBottom: 16 }}>
+                                    Estimasi distribusi kepemilikan saham setelah putaran investasi ini.
+                                </p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <div style={{ textAlign: 'center', flex: 1, borderRight: '1px solid var(--md-outline-variant)' }}>
+                                            <div style={{ fontSize: 11, color: 'var(--md-on-surface-variant)' }}>PRE-MONEY</div>
+                                            <div style={{ fontWeight: 700, fontSize: 14 }}>{formatCurrency(proj.valuation.capTable.preMoney)}</div>
+                                        </div>
+                                        <div style={{ textAlign: 'center', flex: 1 }}>
+                                            <div style={{ fontSize: 11, color: 'var(--md-on-surface-variant)' }}>POST-MONEY</div>
+                                            <div style={{ fontWeight: 700, fontSize: 14 }}>{formatCurrency(proj.valuation.capTable.postMoney)}</div>
+                                        </div>
+                                    </div>
+
+                                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ background: 'var(--md-surface-container-high)', textAlign: 'left' }}>
+                                                <th style={{ padding: 6 }}>Pemegang Saham</th>
+                                                <th style={{ padding: 6 }}>Stake (%)</th>
+                                                <th style={{ padding: 6 }}>Tipe</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {proj.valuation.capTable.shares.map((s, idx) => (
+                                                <tr key={idx} style={{ borderBottom: '1px solid var(--md-outline-variant)' }}>
+                                                    <td style={{ padding: 6, fontWeight: 500 }}>{s.name}</td>
+                                                    <td style={{ padding: 6 }}>{s.stake.toFixed(1)}%</td>
+                                                    <td style={{ padding: 6 }}><span className="badge" style={{ fontSize: 10, padding: '2px 6px' }}>{s.type}</span></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </>
                 )}
 
                 {/* ═══════ SCENARIO ANALYSIS ═══════ */}
                 {section === 'scenario' && (
                     <>
+                        {/* SCENARIOS */}
                         <div className="projection-card">
                             <h3>⚡ Analisis Skenario (Bulanan)</h3>
                             <p style={{ color: 'var(--md-on-surface-variant)', fontSize: 14, marginBottom: 16 }}>
-                                Perbandingan 3 skenario berdasarkan variasi volume penjualan (±30%)
+                                Perbandingan 3 skenario berdasarkan asumsi pertumbuhan bisnis Anda
                             </p>
                             <div className="scenario-grid">
                                 <div className="scenario-card pessimistic">
-                                    <div className="scenario-label">😟 Pesimistis (-30%)</div>
-                                    <div className="scenario-value">{formatCurrency(scenarios.pessimistic.revenue)}</div>
+                                    <div className="scenario-label">😟 Pesimistis ({(proj.scenarios.pessimisticFactor * 100).toFixed(0)}%)</div>
+                                    <div className="scenario-value">{formatCurrency(proj.scenarios.pessimistic.revenue)}</div>
                                     <div className="scenario-sub">Revenue / bulan</div>
-                                    <div className="scenario-value mt-sm" style={{ fontSize: 18 }}>{formatCurrency(scenarios.pessimistic.netProfit)}</div>
+                                    <div className="scenario-value mt-sm" style={{ fontSize: 18 }}>{formatCurrency(proj.scenarios.pessimistic.netProfit)}</div>
                                     <div className="scenario-sub">Laba Bersih / bulan</div>
                                 </div>
                                 <div className="scenario-card realistic">
-                                    <div className="scenario-label">📊 Realistis</div>
-                                    <div className="scenario-value">{formatCurrency(scenarios.realistic.revenue)}</div>
+                                    <div className="scenario-label">📊 Realistis (100%)</div>
+                                    <div className="scenario-value">{formatCurrency(proj.scenarios.realistic.revenue)}</div>
                                     <div className="scenario-sub">Revenue / bulan</div>
-                                    <div className="scenario-value mt-sm" style={{ fontSize: 18 }}>{formatCurrency(scenarios.realistic.netProfit)}</div>
+                                    <div className="scenario-value mt-sm" style={{ fontSize: 18 }}>{formatCurrency(proj.scenarios.realistic.netProfit)}</div>
                                     <div className="scenario-sub">Laba Bersih / bulan</div>
                                 </div>
                                 <div className="scenario-card optimistic">
-                                    <div className="scenario-label">🚀 Optimistis (+30%)</div>
-                                    <div className="scenario-value">{formatCurrency(scenarios.optimistic.revenue)}</div>
+                                    <div className="scenario-label">🚀 Optimistis ({(proj.scenarios.optimisticFactor * 100).toFixed(0)}%)</div>
+                                    <div className="scenario-value">{formatCurrency(proj.scenarios.optimistic.revenue)}</div>
                                     <div className="scenario-sub">Revenue / bulan</div>
-                                    <div className="scenario-value mt-sm" style={{ fontSize: 18 }}>{formatCurrency(scenarios.optimistic.netProfit)}</div>
+                                    <div className="scenario-value mt-sm" style={{ fontSize: 18 }}>{formatCurrency(proj.scenarios.optimistic.netProfit)}</div>
                                     <div className="scenario-sub">Laba Bersih / bulan</div>
                                 </div>
                             </div>
@@ -388,7 +496,14 @@ export default function ProjectDetailPage({ params }) {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {[-30, -20, -10, 0, 10, 20, 30].map(pct => {
+                                        {/* Array dari pesimis ke optimis dengan interval step dinamis */}
+                                        {[
+                                            Math.round((proj.scenarios.pessimisticFactor - 1) * 100),
+                                            Math.round((proj.scenarios.pessimisticFactor - 1) * 100) / 2,
+                                            0,
+                                            Math.round((proj.scenarios.optimisticFactor - 1) * 100) / 2,
+                                            Math.round((proj.scenarios.optimisticFactor - 1) * 100)
+                                        ].map((pct, idx) => {
                                             const factor = 1 + pct / 100;
                                             const rev = proj.monthly.revenue * factor;
                                             const cogs = proj.monthly.cogs * factor;
@@ -396,8 +511,8 @@ export default function ProjectDetailPage({ params }) {
                                             const roi = proj.metrics.totalInvestment > 0 ? ((net * 12) / proj.metrics.totalInvestment) * 100 : 0;
                                             const payback = net > 0 ? proj.metrics.totalInvestment / net : 0;
                                             return (
-                                                <tr key={pct} style={pct === 0 ? { background: 'var(--md-primary-container)' } : {}}>
-                                                    <td style={{ fontWeight: 500 }}>{pct > 0 ? '+' : ''}{pct}%</td>
+                                                <tr key={idx} style={pct === 0 ? { background: 'var(--md-primary-container)' } : {}}>
+                                                    <td style={{ fontWeight: 500 }}>{pct > 0 ? '+' : ''}{pct.toFixed(0)}%</td>
                                                     <td>{formatCurrency(rev)}</td>
                                                     <td style={{ color: net >= 0 ? 'var(--md-success)' : 'var(--md-error)', fontWeight: 500 }}>{formatCurrency(net)}</td>
                                                     <td>{formatPercent(roi)}</td>

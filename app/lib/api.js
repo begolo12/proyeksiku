@@ -102,3 +102,11 @@ export const apiSaveProject = (projectData) => {
 export const apiDeleteProject = (id) => fetchWithAuth(`/projects/${id}`, {
     method: 'DELETE',
 });
+
+// --- REALIZATIONS API ---
+export const apiAddRealization = (projectId, realizationData) => {
+    return fetchWithAuth(`/projects/${projectId}/realizations`, {
+        method: 'POST',
+        body: JSON.stringify(realizationData),
+    });
+};

@@ -6,8 +6,10 @@ import { useAuth } from '@/app/context/AuthContext';
 import { getProject } from '@/app/lib/storage';
 import { generateProjection, calculateMargin, calculateAvgMargin } from '@/app/lib/calculations';
 import { formatCurrency, formatPercent, getBusinessIcon, getBusinessLabel } from '@/app/lib/constants';
-import { X, ChevronLeft, ChevronRight, Maximize, Minimize, Printer, ShieldCheck, AlertTriangle, Lightbulb } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Maximize, Minimize, Printer, ShieldCheck, AlertTriangle, Lightbulb, Download, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const RevenueChart = dynamic(() => import('@/app/components/charts/RevenueChart'), { ssr: false });
 const ProfitChart = dynamic(() => import('@/app/components/charts/ProfitChart'), { ssr: false });
@@ -83,6 +85,52 @@ export default function PresentationPage({ params }) {
         else { document.exitFullscreen(); setIsFullscreen(false); }
     };
 
+    const [isExporting, setIsExporting] = useState(false);
+
+    const downloadPDF = async () => {
+        if (isExporting) return;
+        setIsExporting(true);
+
+        try {
+            const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape A4
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            // Simpan current slide index
+            const originalSlide = current;
+
+            for (let i = 0; i < SLIDES.length; i++) {
+                // Pindah ke slide i agar dirender
+                setCurrent(i);
+                // Tunggu sebentar agar React selesai render
+                await new Promise(r => setTimeout(r, 600));
+
+                const element = document.querySelector('.slide-wrapper');
+                if (element) {
+                    const canvas = await html2canvas(element, {
+                        scale: 2, // Kualitas tinggi
+                        useCORS: true,
+                        backgroundColor: '#ffffff'
+                    });
+                    const imgData = canvas.toDataURL('image/png');
+
+                    if (i > 0) pdf.addPage();
+
+                    // Fit image to A4 landscape
+                    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+                }
+            }
+
+            pdf.save(`${project.name}_Pitch_Deck.pdf`);
+            setCurrent(originalSlide); // Tambahkan ke slide awal
+        } catch (err) {
+            console.error('PDF Export Error:', err);
+            alert('Gagal mengekspor PDF. Silakan coba lagi.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     if (authLoading || !user || !project) {
         return <div className="loading-page"><div className="spinner" /><span>Memuat...</span></div>;
     }
@@ -99,7 +147,16 @@ export default function PresentationPage({ params }) {
                 </button>
                 <span className="slide-counter">{current + 1} / {SLIDES.length} — {SLIDES[current].title}</span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-icon" onClick={() => window.print()} title="Export PDF"><Printer size={16} /></button>
+                    <button
+                        className="btn btn-primary btn-sm"
+                        onClick={downloadPDF}
+                        disabled={isExporting}
+                        style={{ gap: 6 }}
+                    >
+                        {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        {isExporting ? 'Exporting...' : 'Download PDF Presentation'}
+                    </button>
+                    <button className="btn btn-icon" onClick={() => window.print()} title="Print Slide"><Printer size={16} /></button>
                     <button className="btn btn-icon" onClick={toggleFullscreen}>{isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}</button>
                 </div>
             </div>
@@ -389,30 +446,54 @@ export default function PresentationPage({ params }) {
                                     <div className="swot-card swot-strengths">
                                         <h4><ShieldCheck size={16} /> Kekuatan</h4>
                                         <ul>
-                                            <li>Margin rata-rata {formatPercent(proj.metrics.grossMargin)}</li>
-                                            <li>{project.products?.length || 0} variasi produk</li>
-                                            {proj.metrics.roi > 50 && <li>ROI tinggi ({formatPercent(proj.metrics.roi)})</li>}
+                                            {project.strengths ? (
+                                                project.strengths.split('\n').map((s, idx) => <li key={idx}>{s}</li>)
+                                            ) : (
+                                                <>
+                                                    <li>Margin rata-rata {formatPercent(proj.metrics.grossMargin)}</li>
+                                                    <li>{project.products?.length || 0} variasi produk</li>
+                                                    {proj.metrics.roi > 50 && <li>ROI tinggi ({formatPercent(proj.metrics.roi)})</li>}
+                                                </>
+                                            )}
                                         </ul>
                                     </div>
                                     <div className="swot-card swot-weaknesses">
                                         <h4><AlertTriangle size={16} /> Kelemahan</h4>
                                         <ul>
-                                            <li>Ketergantungan volume harian</li>
-                                            <li>Modal awal {formatCurrency(proj.metrics.totalInvestment)}</li>
+                                            {project.weaknesses ? (
+                                                project.weaknesses.split('\n').map((s, idx) => <li key={idx}>{s}</li>)
+                                            ) : (
+                                                <>
+                                                    <li>Ketergantungan volume harian</li>
+                                                    <li>Modal awal {formatCurrency(proj.metrics.totalInvestment)}</li>
+                                                </>
+                                            )}
                                         </ul>
                                     </div>
                                     <div className="swot-card swot-opportunities">
                                         <h4><Lightbulb size={16} /> Peluang</h4>
                                         <ul>
-                                            <li>Pertumbuhan {project.investment?.growthRate || 3}%/bulan</li>
-                                            <li>Ekspansi produk/cabang baru</li>
+                                            {project.opportunities ? (
+                                                project.opportunities.split('\n').map((s, idx) => <li key={idx}>{s}</li>)
+                                            ) : (
+                                                <>
+                                                    <li>Pertumbuhan {project.investment?.growthRate || 3}%/bulan</li>
+                                                    <li>Ekspansi produk/cabang baru</li>
+                                                </>
+                                            )}
                                         </ul>
                                     </div>
                                     <div className="swot-card swot-threats">
                                         <h4><AlertTriangle size={16} /> Ancaman</h4>
                                         <ul>
-                                            <li>Kompetisi lokal</li>
-                                            <li>Fluktuasi harga bahan baku</li>
+                                            {project.threats ? (
+                                                project.threats.split('\n').map((s, idx) => <li key={idx}>{s}</li>)
+                                            ) : (
+                                                <>
+                                                    <li>Kompetisi lokal</li>
+                                                    <li>Fluktuasi harga bahan baku</li>
+                                                </>
+                                            )}
                                         </ul>
                                     </div>
                                 </div>
